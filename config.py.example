@@ -1,0 +1,8 @@
+ 
+# paths of source database files and output directories
+SQLITE_DB = "signal-2018-11-01-00-00-00.sqlite"
+OUTPUT_PATH = "signal-2018-11-01-00-00-00"
+
+# your own personal display name
+DISPLAY_NAME = "Your Name"
+PHONE_NUMBER = "+19999999999"
