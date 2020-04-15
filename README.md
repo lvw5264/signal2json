@@ -2,13 +2,12 @@
 
 We will make a modified version of the discord history viewer to add additional functionality and possibly even make it a universal chat log viewer. It's chat log format is very elegant and makes a perfect universal standard for all other chat logs to be converted to.
 
-Due to the my amount of media being shared over the course of three years, the Signal app data grew to be 5gb in size for some users, which became almost impractical to back up, search, or even maintain in the app safely (where one malformed message made the app crash before a backup could complete). Most of all having the full chat history on a portable device is a security and privacy risk no matter what encryption or passwords are on the device, as it could possibly be caught unlocked, and the risk grows as more data retained on device. 
+Due to the amount of media being shared over the course of three years, the Signal app data grew to be 5gb in size for some users, which became almost impractical to back up, search, or even maintain in the app safely (where one malformed message made the app crash before a backup could complete). Most of all having the full chat history on a portable device is a security and privacy risk no matter what encryption or passwords are on the device, as it could possibly be caught unlocked, and the risk grows as more data retained on device. 
 
 This script allows chats to be dumped to backup and a retention period set where chats are deleted after each backup, yet still accessible and searchable on a less often accessed (ideally encrypted) device.
 
 Signal encrypted backups can be dumped to sqlite, but require the use of complex SQL joins to obtain the data in the expected series. Instead, this script was made to allow the Signal app to have chat history cleared after each successful backup, which can be done periodically.
 
-This open source script is a part of a broader effort to organize and sort its group chat logs from various systems. Issues and pull requests are welcomed.
 
 ## Usage
 
@@ -38,7 +37,10 @@ DISPLAY_NAME = "Your Name"
 PHONE_NUMBER = "+19999999999"
 ```
 
-Then just run the following command (python3 is recommended for superior unicode support, but the default python 2 might work):
+Then just run the following command (python3 is strongly recommended for superior unicode support, but the default python 2 might work):
+
+
+> **Note:** If an older signal dump is used (prior to ~2020, such as 20190130), it will have an older SQL schema where the `recipient` table is named `recipients_preferences`, and the phone number was used as the `recipient_ids`, rather than a user id. Use the prior git tag 20190130 instead. https://github.com/lvw5264/signal2json/releases/tag/20190130
 
 ```
 python3 signal2json.py
@@ -96,6 +98,10 @@ Based on the Discord JSON message output of Discord History Tracker (under the o
   * We make all Signal attachments with "image" MIMEtype embeds `"e"`, and all other MIME types attachments `a`. This way, images can be viewed if an HTTP server is utilized, and attachments can be downloaded.
 4. **Use in a Popular Group Chat** - Given that our Discord chat logs are already in the format, it was convenient to simply match this format rather than build yet another standard that few people would use.
 
+Dump path/filename format: `service_name/20181224/chat_id-chat_name.json`
+
+### Future Possibilities
+
 We will attempt to convert various other log formats to match this standard, particularly our Signal dumps. For example:
 
 * Signal encrypted backups are stored in their own special scheme and its up to other developers like me to make them readable. The table fields seem reminiscent of its SMS/MMS past, with an annoying split between messages that typically go over SMS and messages that typically go over MMS. Also many fields were added over time and not available previously.
@@ -109,8 +115,6 @@ We will attempt to convert various other log formats to match this standard, par
 * WhatsApp: Much like Signal but it aint.
 * Telegram: Piloted for a while, not really what we needed.
 * Other platforms not relevant to us but still worthy might be Slack, RocketChat, 
-
-Dump path/filename format: `service_name/20181224/chat_id-chat_name.json`
 
 ## Key Design Considerations
 
@@ -127,6 +131,9 @@ See the Signal-Android code to review the SQL Schema for Signal on Android. We r
 ## Issues
 
 * Not all information from the sqlite database was deemed to be worthy of archival (such as read receipts, etc). And other new items may possibly be overlooked. Please make a pull request to add them in and justify their addition.
+* Stickers are not yet supported, though signal-backup-decode does dump them.
+* Reactions are not yet supported, they rely on some sort of blob.
+* Avatars are not yet supported.
 * Quotes use the message `mms.date` (when message was sent) as the `mms.quote_id`, which differs from `mms.date_received` as that is merely the date your device received it.
     * It is likely that this is to keep compatibility with messages quoted from the `sms` table, but it is unknown whether `sms.date_sent` (which we use as the timestamp in our log formats) is used as it should be the equivalent of `mms.date`, rather than `sms.date` which is the date it was recorded to be received.
     * Therefore, someone will need to experiment and raise an issue if they cannot find a quoted message originating from the table `sms`, so it could possibly be rectified.
@@ -143,3 +150,79 @@ See the Signal-Android code to review the SQL Schema for Signal on Android. We r
 * (DONE) Run a python simplehttpserver to make the attachments available at localhost:8000/uniqueid_partid
 * Detect the correct mimetype of the file and serve it to the browser. Probably need to use python_magic: https://github.com/sjkingo/python-parrot/blob/master/parrot/parrot.py
   * Alternatively, propose a mod to signal rust dump to autodetect and place file extensions
+
+## SQL Schema Changes
+
+### Breaking Changes to `signal2json-2.py`
+
+As a result of some key SQL Schema changes, a second version of the signal2json script had to be made (the old one is retained for recovery of previous dumps).
+
+Around the time when Avatars and Stickers were introduced, perhaps in the aim of supporting a future email username, a new `recipient._id` field was created to replace the phone number and move it to `recipient.phone` instead. 
+
+`thread.recipient_ids` and `sms.address` therefore stores this new `recipient._id` instead of what is now `recipient.phone`.
+
+```
+recipient._id = # New primary key replacing phone, which is demoted
+thread.recipient_ids = recipient._id
+recipient_preferences.recipient_ids = recipient.phone
+```
+
+New columns with significant values are as follows. Apparently they represent the first detected Signal profile name? Also there's a new UUID field, but not all users have a UUID?
+
+```
+recipient.uuid
+recipient.profile_joined_name
+recipient.profile_family_name
+sms.reactions
+sms.reactions_unread
+sms.reactions_last_seen
+mms.previews
+mms.reveal_duration
+mms.reveal_start_time
+mms.reactions
+mms.reactions_unread
+mms.reactions_last_seen
+```
+
+For the thread feature for viewing snippet images, three fields were added:
+
+```
+thread.snippet_uri
+thread.snippet_content_type
+thread.snippet_extras
+```
+
+Additional minor renames were as follows:
+
+```
+recipient_preferences.expire_messages = recipient.message_expiration_time
+recipient_preferences.system_contact_photo = recipient.system_photo_uri
+```
+
+Unused columns (at least in my experience) apparently include the following:
+
+```
+recipient.username
+recipient.email
+```
+
+### Migrations Necessary
+
+* [x] OWNER_RECIPIENT_ID - store into this variable
+* [ ] PHONE_NUMBER conversion to recipient_id
+* [ ] Have a map of recipient ID to phone number, for use in filenames and lookups (used near the last parts of the script)
+
+## Forerunners
+
+### SignalTextBackupViewer
+
+Unfortunately this doesn't support anything except the old .xml format used by Silence, which is no longer used.
+
+https://github.com/baumschubser/SignalTextBackupViewer
+
+### View-signal-backup
+
+Someone had made this "CLI and UI to view contents of decrypted Signal backup files", but it seems overly complicated in terms of go and javascript. I simply outsource the hard part of decryption to signal-backup-decode
+
+
+https://github.com/nthurow/view-signal-backup
