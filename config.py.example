@@ -6,3 +6,6 @@ OUTPUT_PATH = "signal-2018-11-01-00-00-00"
 # your own personal display name
 DISPLAY_NAME = "Your Name"
 PHONE_NUMBER = "+19999999999"
+
+# if your own recipient id is a contact in signal, and you know it already from sqlite, it can be changed from None here to the integer ID
+OWNER_RECIPIENT_ID = None
