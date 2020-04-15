@@ -65,7 +65,7 @@ threads.json
 
 As seen in `example.json.py`, a lightly augmented version of Discord History Viewer's refreshingly simple format is used in a modified version of its HTML code to allow it to view images locally.
 
-Because of security restrictions on reading files from disk in browser HTML/JS code, if you want to view images you will need to serve the images directory using python's simpleHTTPserver, available on any Linux or Mac OS X system.
+Because of security restrictions on reading files from disk in browser HTML/JS code, if you want to view images you will need to serve the images directory using python's simpleHTTPserver, available on any Linux or Mac OS X system. We have a copy of it in this repo.
 
 https://dht.chylex.com/build/viewer.html
 
@@ -73,10 +73,10 @@ First, cd into the folder created by `signal-backup-decode` in Step 3. It should
 
 ```
 $ cd signal-2018-11-01-00-00-00  # the folder where `signal-backup-decode` put your attachments/ folder
-$ wget https://dht.chylex.com/build/viewer.html  # download the discord history viewer
 $ ls                                             # ensure that you see the following folders & files at least (extra files are OK)
 attachments  avatars    config     viewer.html
 $ python -m SimpleHTTPServer 8000                # run the python webserver in there to make the attachments viewable
+$ python3 ext_simplehttpserver.py                # alternatively, use this as the http server at port 8000.
 ```
 
 Then, open up the url [`http://localhost:8000/viewer.html`](http://localhost:8000/viewer.html) . Then click "Load File" at the top right and select a chat log json. You will be able to see chat logs, and the images will be embedded. Non-image files will appear as downloadable attachments instead.
